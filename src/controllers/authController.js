@@ -13,16 +13,16 @@ exports.refreshToken = async (req, res) => {
     try {
         const result = await db.query(queryText, [refreshToken]);
         if (result.rows.length === 0) {
-            return res.sendStatus(403);
+            return res.sendStatus(403);  // refresh token doesn't exist in the database
         }
 
-        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
             if (err) {
                 console.error('Token verification failed:', err);
                 return res.sendStatus(403); // Forbidden if token is invalid or expired
             }
             // generate new access token
-            const accessToken = tokenUtil.generateAccessToken(decoded.id);
+            const accessToken = tokenUtil.generateAccessToken(user.id);
 
             // Set access token cookie
             res.cookie('accessToken', accessToken, {

@@ -4,7 +4,6 @@ require('dotenv').config();
 const authenticateToken = (req, res, next) => {
     // Retrieve the token from cookies
     const token = req.signedCookies.accessToken;
-    //console.log("Cookies:", req.signedCookies);
 
     if (!token) {
         return res.sendStatus(401); // No token found, unauthorized
@@ -14,6 +13,9 @@ const authenticateToken = (req, res, next) => {
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
         if (err) {
             console.error('Token verification failed:', err);
+            if (err.name === 'TokenExpiredError') {
+                return res.status(401).json({ message: 'Access token expired' });  // unauthorized
+            }
             return res.sendStatus(403); // Invalid token, forbidden
         }
         req.user = user;
