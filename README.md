@@ -68,10 +68,10 @@ This API serves as the backend for an e-commerce platform, handling user authent
 3. Set up environment variables in .env
 4. Navigate to the project directory and install dependencies:
 
-```bash
+```
 npm install
 npm start
-```bash
+```
 
 This will run the server on localhost:3000 by default.
 
@@ -91,9 +91,9 @@ The API uses standard HTTP status codes to indicate the success or failure of an
 ## Development
 For local development, you can use the following command to start the server with nodemon, which will auto-reload on code changes:
 
-```bash
+```
 npm run dev
-```bash
+```
 
 ## Contributing
 Contributions are welcome! Please feel free to submit pull requests or open issues to suggest improvements or add new features.
