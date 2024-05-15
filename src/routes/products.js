@@ -14,18 +14,18 @@ router.param('productId', (req, res, next, id) => {
 });
 
 // Get all products
-router.get('/', productController.getAllProducts);
+router.get('/', authenticate, productController.getAllProducts);
 
 // Create a new product
-router.post('/', productController.createProduct);
+router.post('/', authenticate, productController.createProduct);
 
 // Get a single product by id
-router.get('/:productId', productController.getProductById);
+router.get('/:productId', authenticate, productController.getProductById);
 
 // Update an existing product
-router.put('/:productId', productController.updateProduct);
+router.put('/:productId', authenticate, productController.updateProduct);
 
 // Delete a product
-router.delete('/:productId', productController.deleteProduct);
+router.delete('/:productId', authenticate, productController.deleteProduct);
 
 module.exports = router;

@@ -24,18 +24,18 @@ router.param('productId', (req, res, next, id) => {
 });
 
 // Get the cart for a user
-router.get('/:userId', cartController.getUserCart);
+router.get('/:userId', authenticate, cartController.getUserCart);
 
 // Add an item to the cart
-router.post('/:userId/items', cartController.addItemToCart);
+router.post('/:userId/items', authenticate, cartController.addItemToCart);
 
 // Clear all items from the cart
-router.delete('/:userId/clear', cartController.clearCart);
+router.delete('/:userId/clear', authenticate, cartController.clearCart);
 
 // Update item quantity in the cart
-router.put('/:userId/items/:productId', cartController.updateCartItem);
+router.put('/:userId/items/:productId', authenticate, cartController.updateCartItem);
 
 // Remove an item from the cart
-router.delete('/:userId/items/:productId', cartController.removeItemFromCart);
+router.delete('/:userId/items/:productId', authenticate, cartController.removeItemFromCart);
 
 module.exports = router;

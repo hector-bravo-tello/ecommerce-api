@@ -24,18 +24,18 @@ router.param('orderId', (req, res, next, id) => {
 });
 
 // Create an order from the user's cart
-router.post('/:userId', orderController.createOrder);
+router.post('/:userId', authenticate, orderController.createOrder);
 
 // Get all orders for a user
-router.get('/:userId', orderController.getAllUserOrders);
+router.get('/:userId', authenticate, orderController.getAllUserOrders);
 
 // Get a specific order by ID
-router.get('/:userId/:orderId', orderController.getOrderById);
+router.get('/:userId/:orderId', authenticate, orderController.getOrderById);
 
 // Update order status (requires admin privileges potentially)
-router.put('/:orderId/status', orderController.updateOrderStatus);
+router.put('/:orderId/status', authenticate, orderController.updateOrderStatus);
 
 // Cancel an order
-router.delete('/:userId/:orderId', orderController.cancelOrder);
+router.delete('/:userId/:orderId', authenticate, orderController.cancelOrder);
 
 module.exports = router;

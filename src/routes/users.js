@@ -36,12 +36,12 @@ router.post('/login', loginUser);
 router.delete('/logout/:userId', authenticate, logoutUser);
 
 // Retrieve user details
-router.get('/:userId', getUserById);
+router.get('/:userId', authenticate, getUserById);
 
 // Update user details
-router.put('/:userId', updateUser);
+router.put('/:userId', authenticate, updateUser);
 
 // Delete a user
-router.delete('/:userId', deleteUser);
+router.delete('/:userId', authenticate, deleteUser);
 
 module.exports = router;

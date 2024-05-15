@@ -5,7 +5,7 @@ This API serves as the backend for an e-commerce platform, handling user authent
 
 ## Features
 
-## User Management
+### User Management
 - **User Registration**: Allows new users to register by providing email, password, and full name. It returns user details along with a success message.
 - **User Login**: Authenticates users and provides cookies with access and refresh tokens.
 - **User Details Retrieval**: Fetch user details using a unique user ID.
@@ -13,42 +13,43 @@ This API serves as the backend for an e-commerce platform, handling user authent
 - **User Deletion**: Deletes a user's account based on their unique user ID.
 - **User Logout**: Logs out users by clearing their authentication tokens, ensuring secure session termination.
 
-## Product Management
+### Product Management
 - **List All Products**: Retrieves details of all products available in the database.
 - **Create New Product**: Allows adding a new product with details like name, description, price, and stock quantity.
 - **Retrieve Product Details**: Fetches detailed information of a product using its unique product ID.
 - **Update Product**: Updates existing product details.
 - **Delete Product**: Removes a product from the database using its unique ID.
 
-## Cart Operations
+### Cart Operations
 - **Retrieve Cart**: Gets all items in a user’s cart.
 - **Add to Cart**: Adds a new product to the cart along with desired quantity.
 - **Update Cart Item**: Modifies the quantity of an existing cart item.
 - **Remove Cart Item**: Deletes an item from the cart.
 - **Clear Cart**: Empties all items from a user’s cart.
 
-## Order Processing
+### Order Processing
 - **Create Order**: Converts all items in a user's cart into an order. It requires details like shipping fee, tax, and payment method ID.
 - **List User Orders**: Retrieves all orders associated with a user.
 - **Get Order Details**: Provides detailed information about a specific order using the order ID.
 - **Update Order Status**: Allows updating the status of an order, which can include actions like processing, shipped, delivered, etc.
 - **Cancel Order**: Deletes an order from the database, effectively cancelling it.
 
-## Authentication and Security
+### Authentication and Security
 - **Secure Routes**: Utilizes JSON Web Tokens (JWT) for securing routes and ensures that some actions can only be performed by authenticated users.
 - **Password Hashing**: Ensures all user passwords are hashed before storing in the database for added security.
 - **Refresh Tokens**: Implements a refresh token mechanism to maintain user sessions securely.
 - **Signed Cookies**: Signed Cookies are used for storing tokens and configured with security options.
 
-## Error Handling
+### Error Handling
 - **Comprehensive Error Responses**: The API provides detailed error messages and appropriate HTTP status codes to help diagnose issues during requests.
 
-## Development and Testing
+### Development and Testing
 - **Local Development Support**: Includes configurations for running the API in a development environment with live reload capabilities.
 - **Scalable Architecture**: Designed to be scalable and maintainable, supporting further development and integration with other services.
 
 ## Requirements
 - Node.js
+- Express
 - PostgreSQL
 - npm (Node Package Manager)
 - Set up environment variables:
@@ -70,6 +71,7 @@ This API serves as the backend for an e-commerce platform, handling user authent
 ```bash
 npm install
 npm start
+```bash
 
 This will run the server on localhost:3000 by default.
 
@@ -91,6 +93,7 @@ For local development, you can use the following command to start the server wit
 
 ```bash
 npm run dev
+```bash
 
 ## Contributing
 Contributions are welcome! Please feel free to submit pull requests or open issues to suggest improvements or add new features.
