@@ -5,6 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const morgan = require('morgan');
 require('dotenv').config();
 
 const tokenRoutes = require('./src/routes/tokens');
@@ -20,10 +21,14 @@ app.use(cors({ credentials: true }));               // Enable CORS
 app.use(express.json());                            // Built-in middleware for JSON
 app.use(express.urlencoded({ extended: true }));    // Built-in middleware for URL-encoded forms
 app.use(cookieParser(process.env.COOKIE_SECRET));   // This will parse cookies attached to the client request object
+app.use(morgan('dev'));                             // Morgan middleware to log HTTP requests
 
 // Home
 app.get('/', (req, res) => {
-    res.send('E-commerce API!');
+    res.send({
+        message: "Ecommerce API!",
+        status: 200,
+    });
 });
 
 // Routes
