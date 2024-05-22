@@ -29,3 +29,4 @@ router.put('/:productId', authenticate, productController.updateProduct);
 router.delete('/:productId', authenticate, productController.deleteProduct);
 
 module.exports = router;
+

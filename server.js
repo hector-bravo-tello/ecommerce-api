@@ -4,6 +4,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet')
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 require('dotenv').config();
@@ -18,6 +19,7 @@ const app = express();
 
 // Middleware
 app.use(cors({ credentials: true }));               // Enable CORS
+app.use(helmet());                                  // Helmet middleware for security
 app.use(express.json());                            // Built-in middleware for JSON
 app.use(express.urlencoded({ extended: true }));    // Built-in middleware for URL-encoded forms
 app.use(cookieParser(process.env.COOKIE_SECRET));   // This will parse cookies attached to the client request object
