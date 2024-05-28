@@ -3,16 +3,6 @@ const router = express.Router();
 const authenticate = require('../middlewares/authenticateToken');
 const productController = require('../controllers/productController');
 
-router.param('productId', (req, res, next, id) => {
-    const productId = parseInt(req.params.productId);
-    if (!isNaN(productId) && productId > 0) {
-        req.productId = productId;
-        next();
-    } else {
-        res.status(400).send("Invalid productId.");
-    }
-});
-
 // Get all products
 router.get('/', authenticate, productController.getAllProducts);
 
@@ -21,6 +11,9 @@ router.post('/', authenticate, productController.createProduct);
 
 // Get a single product by id
 router.get('/:productId', authenticate, productController.getProductById);
+
+// Get products by category_id
+router.get('/category/:categoryId', authenticate, productController.getAllCategoryProducts);
 
 // Update an existing product
 router.put('/:productId', authenticate, productController.updateProduct);

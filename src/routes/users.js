@@ -1,47 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const authenticate = require('../middlewares/authenticateToken');
-
-// Assuming you have these controllers defined elsewhere in your project
-const {
-    registerUser,
-    loginUser,
-    getUserById,
-    updateUser,
-    deleteUser,
-    logoutUser
-} = require('../controllers/userController');
-
-//
-// You should reorder the routes so that the more specific routes (like /logout) are defined before the more general routes that include parameters.
-//
-
-router.param('userId', (req, res, next, id) => {
-    const userId = parseInt(req.params.userId);
-    if (!isNaN(userId) && userId > 0) {
-        req.userId = userId;
-        next();
-    } else {
-        res.status(400).send("Invalid userId.");
-    }
-});
+const userController = require('../controllers/userController');
 
 // User registration
-router.post('/register', registerUser);
+router.post('/register', userController.registerUser);
 
 // User login
-router.post('/login', loginUser);
+router.post('/login', userController.loginUser);
 
 // Logout user
-router.delete('/logout/:userId', authenticate, logoutUser);
+router.delete('/logout/:userId', authenticate, userController.logoutUser);
 
 // Retrieve user details
-router.get('/:userId', authenticate, getUserById);
+router.get('/:userId', authenticate, userController.getUserById);
 
 // Update user details
-router.put('/:userId', authenticate, updateUser);
+router.put('/:userId', authenticate, userController.updateUser);
+
+// Update password
+router.put('/password/:userId', authenticate, userController.changePassword);
 
 // Delete a user
-router.delete('/:userId', authenticate, deleteUser);
+router.delete('/:userId', authenticate, userController.deleteUser);
 
 module.exports = router;

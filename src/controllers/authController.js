@@ -3,15 +3,17 @@ const db = require('../config/db');
 const tokenUtil = require('../utils/tokenUtil');
 require('dotenv').config();
 
+// if refresh token is valid, it will generate a new access token
 exports.refreshToken = async (req, res) => {
-    const refreshToken = req.signedCookies.refreshToken;
-    if (!refreshToken) {
-        return res.status(401).json({ message: "No refresh token provided." });
-    }
-
-    const queryText = 'SELECT token, user_id, expires_at FROM refresh_tokens WHERE token = $1';
     try {
+        const refreshToken = req.signedCookies.refreshToken;
+        if (!refreshToken) {
+            return res.status(401).json({ message: "No refresh token provided." });
+        }
+
+        const queryText = 'SELECT token, user_id, expires_at FROM refresh_tokens WHERE token = $1';
         const result = await db.query(queryText, [refreshToken]);
+
         if (result.rows.length === 0) {
             return res.sendStatus(403);  // refresh token doesn't exist in the database
         }

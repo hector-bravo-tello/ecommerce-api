@@ -3,26 +3,6 @@ const router = express.Router();
 const authenticate = require('../middlewares/authenticateToken');
 const orderController = require('../controllers/orderController');
 
-router.param('userId', (req, res, next, id) => {
-    const userId = parseInt(req.params.userId);
-    if (!isNaN(userId) && userId > 0) {
-        req.userId = userId;
-        next();
-    } else {
-        res.status(400).send("Invalid userId.");
-    }
-});
-
-router.param('orderId', (req, res, next, id) => {
-    const orderId = parseInt(req.params.orderId);
-    if (!isNaN(orderId) && orderId > 0) {
-        req.orderId = orderId;
-        next();
-    } else {
-        res.status(400).send("Invalid orderId.");
-    }
-});
-
 // Create an order from the user's cart
 router.post('/:userId', authenticate, orderController.createOrder);
 

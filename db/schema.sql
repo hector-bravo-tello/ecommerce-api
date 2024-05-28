@@ -9,8 +9,20 @@ CREATE TABLE users (
 
 CREATE INDEX idx_email_password_hash_id ON users (email, password_hash, id);
 
+CREATE TABLE product_categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_category_name CHECK (char_length(name) > 0)
+);
+
+CREATE INDEX idx_category_name ON product_categories (name);
+
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
+    category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     price NUMERIC CHECK (price > 0) NOT NULL,
@@ -33,9 +45,9 @@ INSERT INTO cart_status (status) VALUES ('Active'), ('Recovered'), ('Ordered'), 
 CREATE TABLE carts (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-	status_id INTEGER REFERENCES cart_status(id) NOT NULL,
+    status_id INTEGER REFERENCES cart_status(id) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT fk_user_cart FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_cart FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_cart_status FOREIGN KEY (status_id) REFERENCES cart_status(id),
     CONSTRAINT chk_user_id CHECK (user_id > 0)
 );
@@ -69,11 +81,32 @@ CREATE TABLE payment_methods (
     CONSTRAINT chk_payment_method CHECK (char_length(method) > 0)
 );
 
-INSERT INTO payment_methods (method) VALUES ('Credit Card'), ('Debit Card'), ('PayPal'), ('Bank Transfer'), ('Gift Card');
+INSERT INTO payment_methods (method) VALUES ('Credit Card'), ('PayPal');
+
+CREATE TABLE user_addresses (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    address_line1 VARCHAR(255) NOT NULL,
+    address_line2 VARCHAR(255),
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    postal_code VARCHAR(20) NOT NULL,
+    country VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_address_line1 CHECK (char_length(address_line1) > 0),
+    CONSTRAINT chk_city CHECK (char_length(city) > 0),
+    CONSTRAINT chk_state CHECK (char_length(state) > 0),
+    CONSTRAINT chk_postal_code CHECK (char_length(postal_code) > 0),
+    CONSTRAINT chk_country CHECK (char_length(country) > 0)
+);
+
+CREATE INDEX idx_user_address_user_id ON user_addresses (user_id);
 
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    address_id INTEGER REFERENCES user_addresses(id) ON DELETE SET NULL,
     sub_total NUMERIC CHECK (sub_total > 0) NOT NULL,
     shipping_fee NUMERIC NOT NULL,
     tax NUMERIC NOT NULL,
@@ -115,8 +148,29 @@ CREATE TABLE refresh_tokens (
 CREATE INDEX idx_token_user_id_expires_at ON refresh_tokens(token, user_id, expires_at);
 CREATE INDEX idx_user_id ON refresh_tokens(user_id);
 
+-- OAuth tables used for authentication
 
+CREATE TABLE oauth_providers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL
+);
 
+INSERT INTO oauth_providers (name) VALUES ('google'), ('facebook');
+
+CREATE TABLE users_oauth (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    provider_id INTEGER REFERENCES oauth_providers(id) ON DELETE CASCADE,
+    oauth_id VARCHAR(255) NOT NULL,
+    profile_picture_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, provider_id)
+);
+
+CREATE INDEX idx_users_oauth_user_provider ON users_oauth (user_id, provider_id);
+
+-- Functions to interact with the database
 
 CREATE OR REPLACE FUNCTION get_user_cart(cart_id_arg integer)
 RETURNS TABLE(product_id integer, quantity integer, price numeric) AS $$
@@ -136,7 +190,8 @@ CREATE OR REPLACE FUNCTION public.create_order_from_cart(
 	cart_id_arg integer,
 	shipping_fee_arg numeric,
 	tax_arg numeric,
-	payment_method_id_arg integer)
+	payment_method_id_arg integer,
+	address_id_arg integer)
     RETURNS integer
     LANGUAGE 'plpgsql'
     COST 100
@@ -167,8 +222,8 @@ BEGIN
 	status_id = 1;   -- Order status, assuming status '1' is 'Pending'
 
     -- Insert a new order
-    INSERT INTO orders (user_id, sub_total, shipping_fee, tax, order_total, status_id, payment_method_id)
-    VALUES (user_id_arg, sub_total, shipping_fee_arg, tax_arg, order_total, status_id, payment_method_id_arg) 
+    INSERT INTO orders (user_id, sub_total, shipping_fee, tax, order_total, status_id, payment_method_id, address_id)
+    VALUES (user_id_arg, sub_total, shipping_fee_arg, tax_arg, order_total, status_id, payment_method_id_arg, address_id_arg) 
     RETURNING id INTO order_id;
 
     -- Transfer items from cart to order_items
@@ -187,31 +242,70 @@ END;
 $BODY$;
 
 
-
 CREATE OR REPLACE FUNCTION add_item_to_cart(cart_id_arg integer, product_id_arg integer, quantity_arg integer)
 RETURNS TABLE(cart_item_id integer, cart_id integer, product_id integer, quantity integer) AS $$
 BEGIN
-	-- Ensure both cart and product exist
-	IF NOT EXISTS (SELECT 1 FROM carts WHERE id = cart_id_arg) THEN
-	    RAISE EXCEPTION 'Cart with ID % does not exist.', cart_id_arg;
-	ELSIF NOT EXISTS (SELECT 1 FROM products WHERE id = product_id_arg) THEN
-	    RAISE EXCEPTION 'Product with ID % does not exist.', product_id_arg;
-	ELSE
-	    -- Check if the product already exists in the cart
-	    IF EXISTS (SELECT 1 FROM cart_items ci WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg) THEN
-	        -- Update the existing product quantity
-	        UPDATE cart_items ci SET quantity = ci.quantity + quantity_arg
-	        WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg;
-	    ELSE
-	        -- Insert a new cart item if the product does not exist in the cart
-	        INSERT INTO cart_items (cart_id, product_id, quantity)
-	        VALUES (cart_id_arg, product_id_arg, quantity_arg);
-	    END IF;
-	
-	    -- Return the new or updated cart item
-	    RETURN QUERY SELECT ci.id, ci.cart_id, ci.product_id, ci.quantity
-	    FROM cart_items ci WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg;
-	END IF;
+    -- Ensure both cart and product exist
+    IF NOT EXISTS (SELECT 1 FROM carts WHERE id = cart_id_arg) THEN
+        RAISE EXCEPTION 'Cart with ID % does not exist.', cart_id_arg;
+    ELSIF NOT EXISTS (SELECT 1 FROM products WHERE id = product_id_arg) THEN
+        RAISE EXCEPTION 'Product with ID % does not exist.', product_id_arg;
+    ELSE
+        -- Check if the product already exists in the cart
+        IF EXISTS (SELECT 1 FROM cart_items ci WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg) THEN
+            -- Update the existing product quantity
+            UPDATE cart_items ci SET quantity = ci.quantity + quantity_arg
+            WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg;
+        ELSE
+            -- Insert a new cart item if the product does not exist in the cart
+            INSERT INTO cart_items (cart_id, product_id, quantity)
+            VALUES (cart_id_arg, product_id_arg, quantity_arg);
+        END IF;
+
+        -- Return the new or updated cart item
+        RETURN QUERY SELECT ci.id, ci.cart_id, ci.product_id, ci.quantity
+        FROM cart_items ci WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg;
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
+-- Triggers to update updated_at timestamp on row update
+
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER update_users_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_product_categories_updated_at
+BEFORE UPDATE ON product_categories
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_products_updated_at
+BEFORE UPDATE ON products
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_user_addresses_updated_at
+BEFORE UPDATE ON user_addresses
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_orders_updated_at
+BEFORE UPDATE ON orders
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_users_oauth_updated_at
+BEFORE UPDATE ON users_oauth
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
