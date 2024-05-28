@@ -3,16 +3,6 @@ const tokenUtil = require('../utils/tokenUtil');
 const bcrypt = require('bcrypt');
 const { check, validationResult } = require('express-validator');
 
-const db = require('../config/db');
-const tokenUtil = require('../utils/tokenUtil');
-const bcrypt = require('bcrypt');
-const { check, validationResult } = require('express-validator');
-
-const db = require('../config/db');
-const tokenUtil = require('../utils/tokenUtil');
-const bcrypt = require('bcrypt');
-const { check, validationResult } = require('express-validator');
-
 // Register a new user
 exports.registerUser = [
     check('email').isEmail().withMessage('Invalid email address').normalizeEmail(),
