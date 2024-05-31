@@ -50,7 +50,7 @@ This API serves as the backend for an e-commerce platform, handling user authent
 
 ### Authentication and Security
 - **Stateless Session Management**: Utilizes JSON Web Tokens (JWT) and secure cookies
-- **Ouath Integrations**: Google and Facebook Ouath are included for users authentication
+- **Oauth Integrations**: In addition to email/password authentication, Google and Facebook Oauth integrations were included
 - **Secure Routes**: Utilizes JWT for securing routes and ensures that some actions can only be performed by authenticated users.
 - **Password Hashing**: Ensures all user passwords are hashed (including salt) before storing in the database for added security.
 - **Refresh Tokens**: Implements a refresh token mechanism to maintain user sessions securely.
