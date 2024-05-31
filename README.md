@@ -13,6 +13,20 @@ This API serves as the backend for an e-commerce platform, handling user authent
 - **User Deletion**: Deletes a user's account based on their unique user ID.
 - **User Logout**: Logs out users by clearing their authentication tokens, ensuring secure session termination.
 
+### User Addresses
+- **List All Addresses for a User**: Retrieves all addresses associated with a specific user.
+- **Create New Address**: Allows adding a new address for a user.
+- **Retrieve Address Details**: Fetches detailed information of an address using its unique address ID.
+- **Update Address**: Updates existing address details.
+- **Delete Address**: Removes an address from the database using its unique ID.
+
+### Product Categories
+- **List All Categories**: Retrieves all categories available in the database.
+- **Create New Category**: Allows adding a new product category.
+- **Retrieve Category Details**: Fetches detailed information of a category using its unique category ID.
+- **Update Category**: Updates existing category details.
+- **Delete Category**: Removes a category from the database using its unique ID.
+
 ### Product Management
 - **List All Products**: Retrieves details of all products available in the database.
 - **Create New Product**: Allows adding a new product with details like name, description, price, and stock quantity.
@@ -35,8 +49,10 @@ This API serves as the backend for an e-commerce platform, handling user authent
 - **Cancel Order**: Deletes an order from the database, effectively cancelling it.
 
 ### Authentication and Security
-- **Secure Routes**: Utilizes JSON Web Tokens (JWT) for securing routes and ensures that some actions can only be performed by authenticated users.
-- **Password Hashing**: Ensures all user passwords are hashed before storing in the database for added security.
+- **Stateless Session Management**: Utilizes JSON Web Tokens (JWT) and secure cookies
+- **Ouath Integrations**: Google and Facebook Ouath are included for users authentication
+- **Secure Routes**: Utilizes JWT for securing routes and ensures that some actions can only be performed by authenticated users.
+- **Password Hashing**: Ensures all user passwords are hashed (including salt) before storing in the database for added security.
 - **Refresh Tokens**: Implements a refresh token mechanism to maintain user sessions securely.
 - **Signed Cookies**: Signed Cookies are used for storing tokens and configured with security options.
 
@@ -61,6 +77,12 @@ This API serves as the backend for an e-commerce platform, handling user authent
   - `ACCESS_TOKEN_SECRET`
   - `REFRESH_TOKEN_SECRET`
   - `COOKIE_SECRET`
+  - `GOOGLE_CLIENT_ID`
+  - `GOOGLE_CLIENT_SECRET`
+  - `GOOGLE_CALLBACK_URL`
+  - `FACEBOOK_APP_ID`
+  - `FACEBOOK_APP_SECRET`
+  - `FACEBOOK_CALLBACK_URL`
 
 ## Installation
 1. Clone the repository to your local machine.
