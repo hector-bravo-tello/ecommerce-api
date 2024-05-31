@@ -1,10 +1,12 @@
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
+    password_hash TEXT,
+    full_name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_email CHECK (char_length(email) > 0 AND email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+    CONSTRAINT chk_email CHECK (char_length(email) > 0 AND email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    CONSTRAINT chk_full_name CHECK (char_length(TRIM(BOTH FROM full_name)) > 0)
 );
 
 CREATE INDEX idx_email_password_hash_id ON users (email, password_hash, id);
@@ -22,17 +24,20 @@ CREATE INDEX idx_category_name ON product_categories (name);
 
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
-    category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
+    category_id INTEGER NOT NULL REFERENCES product_categories(id),
     name VARCHAR(100) NOT NULL,
     description TEXT,
     price NUMERIC CHECK (price > 0) NOT NULL,
     stock INTEGER NOT NULL,
+    image_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_category_id FOREIGN KEY (category_id) REFERENCES product_categories(id)
     CONSTRAINT chk_product_name CHECK (char_length(name) > 0)
 );
 
 CREATE INDEX idx_product_name ON products (name);
+CREATE INDEX idx_category_id ON products (category_id);
 
 CREATE TABLE cart_status (
     id SERIAL PRIMARY KEY,
@@ -242,8 +247,21 @@ END;
 $BODY$;
 
 
-CREATE OR REPLACE FUNCTION add_item_to_cart(cart_id_arg integer, product_id_arg integer, quantity_arg integer)
-RETURNS TABLE(cart_item_id integer, cart_id integer, product_id integer, quantity integer) AS $$
+-- FUNCTION: public.add_item_to_cart(integer, integer, integer)
+
+-- DROP FUNCTION IF EXISTS public.add_item_to_cart(integer, integer, integer);
+
+CREATE OR REPLACE FUNCTION public.add_item_to_cart(
+	cart_id_arg integer,
+	product_id_arg integer,
+	quantity_arg integer)
+    RETURNS TABLE(cart_item_id integer, cart_id integer, product_id integer, quantity integer) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
+AS $BODY$
 BEGIN
     -- Ensure both cart and product exist
     IF NOT EXISTS (SELECT 1 FROM carts WHERE id = cart_id_arg) THEN
@@ -251,20 +269,102 @@ BEGIN
     ELSIF NOT EXISTS (SELECT 1 FROM products WHERE id = product_id_arg) THEN
         RAISE EXCEPTION 'Product with ID % does not exist.', product_id_arg;
     ELSE
-        -- Check if the product already exists in the cart
-        IF EXISTS (SELECT 1 FROM cart_items ci WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg) THEN
-            -- Update the existing product quantity
-            UPDATE cart_items ci SET quantity = ci.quantity + quantity_arg
-            WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg;
+        -- Check if there is enough stock for the product
+        IF (SELECT stock FROM products WHERE id = product_id_arg) < quantity_arg THEN
+            RAISE EXCEPTION 'Not enough stock for product with ID %.', product_id_arg;
         ELSE
-            -- Insert a new cart item if the product does not exist in the cart
-            INSERT INTO cart_items (cart_id, product_id, quantity)
-            VALUES (cart_id_arg, product_id_arg, quantity_arg);
-        END IF;
+            -- Check if the product already exists in the cart
+            IF EXISTS (SELECT 1 FROM cart_items ci WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg) THEN
+                -- Update the existing product quantity
+                UPDATE cart_items ci SET quantity = quantity_arg
+                WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg;
+            ELSE
+                -- Insert a new cart item if the product does not exist in the cart
+                INSERT INTO cart_items (cart_id, product_id, quantity)
+                VALUES (cart_id_arg, product_id_arg, quantity_arg);
+            END IF;
 
-        -- Return the new or updated cart item
-        RETURN QUERY SELECT ci.id, ci.cart_id, ci.product_id, ci.quantity
-        FROM cart_items ci WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg;
+            -- Return the new or updated cart item
+            RETURN QUERY SELECT ci.id, ci.cart_id, ci.product_id, ci.quantity
+            FROM cart_items ci WHERE ci.cart_id = cart_id_arg AND ci.product_id = product_id_arg;
+        END IF;
+    END IF;
+END;
+$BODY$;
+
+
+CREATE OR REPLACE FUNCTION remove_item_from_cart(user_id_arg INT, product_id_arg INT)
+RETURNS VOID AS $$
+DECLARE
+    cart_id_var INT;
+    item_count INT;
+BEGIN
+    -- Find the cart ID for the given user ID
+    SELECT id INTO cart_id_var FROM carts c WHERE c.user_id = user_id_arg;
+
+    -- If no cart is found, raise an exception
+    IF cart_id_var IS NULL THEN
+        RAISE EXCEPTION 'Cart not found for user ID %', user_id_arg;
+    END IF;
+
+    -- Delete the item from the cart_items table
+    DELETE FROM cart_items ci WHERE ci.cart_id = cart_id_var AND ci.product_id = product_id_arg;
+
+    -- Check the number of remaining items in the cart
+    SELECT COUNT(*) INTO item_count FROM cart_items ci WHERE ci.cart_id = cart_id_var;
+
+    -- If no items remain, delete the cart
+    IF item_count = 0 THEN
+        DELETE FROM carts c WHERE c.id = cart_id_var;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION clear_shopping_cart(user_id_arg INT)
+RETURNS VOID AS $$
+DECLARE
+    cart_id_var INT;
+BEGIN
+    -- Find the cart ID for the given user ID
+    SELECT id INTO cart_id_var FROM carts c WHERE c.user_id = user_id_arg AND c.status_id = 1;
+
+    -- If no cart is found, raise an exception
+    IF cart_id_var IS NULL THEN
+        RAISE EXCEPTION 'Cart not found for user ID %', user_id_arg;
+    END IF;
+
+    -- Delete all items from the cart_items table
+    DELETE FROM cart_items ci WHERE ci.cart_id = cart_id_var;
+
+    -- Delete the cart from the carts table
+    DELETE FROM carts c WHERE c.id = cart_id_var;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- OAuth function to handle user authentication
+CREATE OR REPLACE FUNCTION handle_oauth(oauth_id_arg VARCHAR, provider_id_arg INTEGER, email_arg VARCHAR, full_name_arg VARCHAR) 
+RETURNS TABLE(user_id INTEGER, email VARCHAR) AS $$
+DECLARE
+    existing_user_id INTEGER;
+BEGIN
+    -- Check if OAuth user exists
+    SELECT user_id INTO existing_user_id FROM users_oauth WHERE oauth_id = oauth_id_arg AND provider_id = provider_id_arg;
+
+    IF existing_user_id IS NOT NULL THEN
+        -- User exists, return user details
+        RETURN QUERY SELECT id, email FROM users WHERE id = existing_user_id;
+    ELSE
+        -- Insert new user
+        INSERT INTO users (email, full_name) VALUES (email_arg, full_name_arg) RETURNING id INTO existing_user_id;
+
+        -- Insert OAuth user
+        INSERT INTO users_oauth (user_id, provider_id, oauth_id) 
+        VALUES (existing_user_id, provider_id_arg, oauth_id_arg);
+
+        -- Return new user details
+        RETURN QUERY SELECT id, email FROM users WHERE id = existing_user_id;
     END IF;
 END;
 $$ LANGUAGE plpgsql;

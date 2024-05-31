@@ -19,7 +19,7 @@ exports.registerUser = [
             // Check if email already exists
             const emailCheck = await db.query('SELECT id FROM users WHERE email = $1', [email]);
             if (emailCheck.rows.length > 0) {
-                return res.status(400).json({ message: 'Email already exists' });
+                return res.status(400).json({ error: 'Email already exists' });
             }
 
             // Generate salt
@@ -27,32 +27,18 @@ exports.registerUser = [
             // Hash the password with the salt
             const hash = await bcrypt.hash(password, salt);
             const result = await db.query(
-                'INSERT INTO users (email, password_hash, full_name) VALUES ($1, $2, $3) RETURNING id',
+                'INSERT INTO users (email, password_hash, full_name) VALUES ($1, $2, $3) RETURNING id, email, full_name, created_at',
                 [email, hash, full_name]
             );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'User not inserted' });
+            }
+
             const userId = result.rows[0].id;
-            const accessToken = tokenUtil.generateAccessToken(userId);
-            const refreshToken = tokenUtil.generateRefreshToken(userId);
-            
-            // Set access token cookie
-            res.cookie('accessToken', accessToken, {
-                httpOnly: true,
-                //secure: true,
-                sameSite: 'Strict',
-                signed: true,
-                maxAge: 900000 // milliseconds
-            });
+            tokenUtil.generateAccessTokenWithCookie(res, userId);
+            tokenUtil.generateRefreshTokenWithCookie(res, userId);
 
-            // Set refresh token cookie
-            res.cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                //secure: true,
-                sameSite: 'Strict',
-                signed: true,
-                maxAge: 604800000 // milliseconds
-            });
-
-            res.status(201).json({ userId: userId, message: "User registered successfully." });
+            res.status(201).json(result.rows[0]);
         } catch (error) {
             console.error('Error registering user:', error);
             res.status(500).json({ error: error.message });
@@ -77,33 +63,15 @@ exports.loginUser = [
                 const isValid = await bcrypt.compare(password, user.rows[0].password_hash);
                 if (isValid) {
                     const userId = user.rows[0].id;
-                    const accessToken = tokenUtil.generateAccessToken(userId);
-                    const refreshToken = tokenUtil.generateRefreshToken(userId);
-                    
-                    // Set access token cookie
-                    res.cookie('accessToken', accessToken, {
-                        httpOnly: true,
-                        //secure: true,
-                        sameSite: 'Strict',
-                        signed: true,
-                        maxAge: 900000 // milliseconds
-                    });
+                    tokenUtil.generateAccessTokenWithCookie(res, userId);
+                    tokenUtil.generateRefreshTokenWithCookie(res, userId);
 
-                    // Set refresh token cookie
-                    res.cookie('refreshToken', refreshToken, {
-                        httpOnly: true,
-                        //secure: true,
-                        sameSite: 'Strict',
-                        signed: true,
-                        maxAge: 604800000 // milliseconds
-                    });
-                    
                     res.status(200).json({ message: "Login successful." });
                 } else {
-                    res.status(401).json({ message: "Invalid credentials." });
+                    res.status(401).json({ error: "Invalid credentials." });
                 }
             } else {
-                res.status(404).json({ message: "User not found." });
+                res.status(404).json({ error: "User not found." });
             }
         } catch (error) {
             console.error('Error logging in user:', error);
@@ -120,14 +88,14 @@ exports.getUserById = [
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
         }
+        const userId = req.params.userId;
 
         try {
-            const user = await db.query("SELECT id, email, full_name FROM users WHERE id = $1", [req.params.userId]);
-            if (user.rows.length) {
-                res.status(200).json(user.rows[0]);
-            } else {
-                res.status(404).json({ message: "User not found." });
+            const result = await db.query("SELECT id, email, full_name, created_at, updated_at FROM users WHERE id = $1", [userId]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: "User not found." });
             }
+            res.status(200).json(result.rows[0]);
         } catch (error) {
             console.error('Error getting user:', error);
             res.status(500).json({ error: error.message });
@@ -152,11 +120,14 @@ exports.updateUser = [
             // Check if email already exists for another user
             const emailCheck = await db.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userId]);
             if (emailCheck.rows.length > 0) {
-                return res.status(400).json({ message: 'Email already exists for another user' });
+                return res.status(400).json({ error: 'Email already exists for another user' });
             }
 
-            await db.query('UPDATE users SET email = $1, full_name = $2 WHERE id = $3', [email, full_name, userId]);
-            res.status(200).json({ message: "User updated successfully." });
+            const result = await db.query('UPDATE users SET email = $1, full_name = $2 WHERE id = $3 RETURNING *', [email, full_name, userId]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            res.status(200).json(result.rows[0]);
         } catch (error) {
             console.error('Error updating user:', error);
             res.status(500).json({ error: error.message });
@@ -186,7 +157,7 @@ exports.changePassword = [
                 // Check if the old password is correct
                 const isMatch = await bcrypt.compare(old_password, user.rows[0].password_hash);
                 if (!isMatch) {
-                    return res.status(400).json({ message: 'Old password is incorrect' });
+                    return res.status(400).json({ error: 'Old password is incorrect' });
                 }
 
                 // Generate a new salt and hash the new password
@@ -198,7 +169,7 @@ exports.changePassword = [
 
                 res.status(200).json({ message: 'Password changed successfully' });
             } else {
-                res.status(404).json({ message: 'User not found' });
+                res.status(404).json({ error: 'User not found' });
             }
         } catch (error) {
             console.error('Error changing password:', error);
@@ -215,10 +186,14 @@ exports.deleteUser = [
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
         }
+        const userId = req.params.userId;
 
         try {
-            await db.query('DELETE FROM users WHERE id = $1', [req.params.userId]);
-            res.status(200).json({ message: "User deleted successfully." });
+            const result = await db.query('DELETE FROM users WHERE id = $1 RETURNING *', [userId]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            } 
+            res.status(200).json(result.rows[0]);
         } catch (error) {
             console.error('Error deleting user:', error);
             res.status(500).json({ error: error.message });
@@ -234,12 +209,11 @@ exports.logoutUser = [
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
         }
+        const userId = req.params.userId;
 
         try {
-            await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.params.userId]);
-            
-            res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'Strict', signed: true });
-            res.clearCookie('accessToken', { httpOnly: true, sameSite: 'Strict', signed: true });
+            await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+            tokenUtil.clearCookies(res);
 
             res.status(200).json({ message: "User logged out successfully." });
         } catch (error) {

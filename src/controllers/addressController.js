@@ -44,7 +44,7 @@ exports.getAddressById = [
 
 // Create a new address
 exports.createAddress = [
-  check('user_id').isInt().withMessage('User ID must be an integer').toInt(),
+  check('userId').isInt().withMessage('User ID must be an integer').toInt(),
   check('address_line1').notEmpty().withMessage('Address line 1 is required').trim().escape(),
   check('address_line2').optional().trim().escape(),
   check('city').notEmpty().withMessage('City is required').trim().escape(),
@@ -57,13 +57,16 @@ exports.createAddress = [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { user_id, address_line1, address_line2, city, state, postal_code, country } = req.body;
+    const { userId, address_line1, address_line2, city, state, postal_code, country } = req.body;
     try {
       const result = await db.query(
         `INSERT INTO user_addresses (user_id, address_line1, address_line2, city, state, postal_code, country)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [user_id, address_line1, address_line2, city, state, postal_code, country]
+        [userId, address_line1, address_line2, city, state, postal_code, country]
       );
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Address not inserted' });
+      }
       res.status(201).json(result.rows[0]);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -119,7 +122,7 @@ exports.deleteAddress = [
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'Address not found' });
       }
-      res.status(200).json({ message: 'Address deleted' });
+      res.status(200).json(result.rows[0]);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

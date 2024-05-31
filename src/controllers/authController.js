@@ -24,16 +24,7 @@ exports.refreshToken = async (req, res) => {
                 return res.sendStatus(403); // Forbidden if token is invalid or expired
             }
             // generate new access token
-            const accessToken = tokenUtil.generateAccessToken(user.id);
-
-            // Set access token cookie
-            res.cookie('accessToken', accessToken, {
-                httpOnly: true,
-                //secure: true,
-                sameSite: 'Strict',
-                signed: true,
-                maxAge: 900000 // milliseconds
-            });
+            tokenUtil.generateAccessTokenWithCookie(res, user.id);
             
             res.status(200).json({ message: "Access token refreshed successfully." });
         });

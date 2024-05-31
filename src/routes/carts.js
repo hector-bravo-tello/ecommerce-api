@@ -7,15 +7,15 @@ const cartController = require('../controllers/cartController');
 router.get('/:userId', authenticate, cartController.getUserCart);
 
 // Add an item to the cart
-router.post('/:userId/items', authenticate, cartController.addItemToCart);
+router.post('/:userId/products', authenticate, cartController.addItemToCart);
 
 // Clear all items from the cart
 router.delete('/:userId/clear', authenticate, cartController.clearCart);
 
 // Update item quantity in the cart
-router.put('/:userId/items/:productId', authenticate, cartController.updateCartItem);
+router.put('/:userId/products/:productId', authenticate, cartController.updateCartItem);
 
 // Remove an item from the cart
-router.delete('/:userId/items/:productId', authenticate, cartController.removeItemFromCart);
+router.delete('/:userId/products/:productId', authenticate, cartController.removeItemFromCart);
 
 module.exports = router;

@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Configure the database connection pool
-const pool = new Pool({
+exports.pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
@@ -21,7 +21,7 @@ const pool = new Pool({
 // Query method for use in your app
 exports.query = async (text, params) => {
   try {
-    const result = await pool.query(text, params);
+    const result = await exports.pool.query(text, params);
     return result;
     
   } catch (error) {

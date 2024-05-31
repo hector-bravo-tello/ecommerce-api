@@ -13,9 +13,9 @@ router.get('/:userId', authenticate, orderController.getAllUserOrders);
 router.get('/:userId/:orderId', authenticate, orderController.getOrderById);
 
 // Update order status (requires admin privileges potentially)
-router.put('/:orderId/status', authenticate, orderController.updateOrderStatus);
+router.put('/:orderId', authenticate, orderController.updateOrderStatus);
 
 // Cancel an order
-router.delete('/:userId/:orderId', authenticate, orderController.cancelOrder);
+router.delete('/:orderId', authenticate, orderController.cancelOrder);
 
 module.exports = router;

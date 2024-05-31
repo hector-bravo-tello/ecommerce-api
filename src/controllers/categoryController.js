@@ -5,6 +5,9 @@ const { check, validationResult } = require('express-validator');
 exports.getAllCategories = async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM product_categories');
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No Categories' });
+    }
     res.status(200).json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -49,6 +52,9 @@ exports.createCategory = [
         'INSERT INTO product_categories (name, description) VALUES ($1, $2) RETURNING *',
         [name, description]
       );
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Category not inserted' });
+      }
       res.status(201).json(result.rows[0]);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -69,6 +75,7 @@ exports.updateCategory = [
 
     const { name, description } = req.body;
     const categoryId = req.params.categoryId;
+    
     try {
       const result = await db.query(
         'UPDATE product_categories SET name = $1, description = $2 WHERE id = $3 RETURNING *',
@@ -99,7 +106,7 @@ exports.deleteCategory = [
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'Category not found' });
       }
-      res.status(200).json({ message: 'Category deleted successfully' });
+      res.status(200).json(result.rows[0]);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
